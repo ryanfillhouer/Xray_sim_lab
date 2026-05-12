@@ -1716,6 +1716,9 @@ footer {
   letter-spacing: 0.05em;
 }
 
+/* ── Tabs scroll wrapper ───────────────────────────────── */
+.tabs-scroll-wrap { position: relative; }
+
 /* ── Mobile ────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .wrap { padding: 0 12px 40px; }
@@ -1734,6 +1737,16 @@ footer {
   }
   .page-tabs::-webkit-scrollbar { display: none; }
   .page-tab { padding: 12px 16px; flex-shrink: 0; }
+
+  /* Right-edge fade — signals more tabs are off-screen */
+  .tabs-scroll-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 52px;
+    background: linear-gradient(to right, transparent, var(--bg) 90%);
+    pointer-events: none;
+  }
 
   .layout { gap: 16px; }
 
@@ -1759,6 +1772,7 @@ footer {
   <div class="subtitle">Cu Kα · λ = 1.5406 Å<br>θ–2θ · arbitrary I</div>
 </header>
 
+<div class="tabs-scroll-wrap">
 <div class="page-tabs">
   <button class="page-tab active" data-page="diffractogram">
     <span class="pt-num">01</span>
@@ -1788,7 +1802,8 @@ footer {
     <span class="pt-num">07</span>
     <span class="pt-name">Space group explorer</span>
   </button>
-</div>
+</div><!-- end .page-tabs -->
+</div><!-- end .tabs-scroll-wrap -->
 
 <!-- ========== PAGE 1: DIFFRACTOGRAM ========== -->
 <div class="page active" id="page-diffractogram">
@@ -2627,8 +2642,8 @@ footer {
         </div>
         <canvas id="rsm-canvas" width="900" height="540" style="width:100%;display:block;background:#000;"></canvas>
         <div class="legend">
-          <div class="legend-item"><span class="legend-dash" style="background:var(--accent);"></span> Substrate spot (S)</div>
-          <div class="legend-item"><span class="legend-dash" style="background:var(--accent-3);"></span> Film spot (F)</div>
+          <div class="legend-item"><span class="legend-dash" style="background:#ffff80;"></span> Substrate spot (S)</div>
+          <div class="legend-item"><span class="legend-dash" style="background:#ff6600;"></span> Film spot (F)</div>
           <div class="legend-item" style="margin-left:auto;color:var(--ink);">Q_x horizontal · Q_z vertical · log intensity</div>
         </div>
       </div>
@@ -7979,11 +7994,15 @@ function renderRSM() {
       const dz_s = (Qz - Qz_sub) / sigma_z_sub_g;
       const dx_s = (Qx - Qx_sub) / sigma_x_sub_g;
       const I_sub = subAmp * Math.exp(-0.5 * (dx_s*dx_s + dz_s*dz_s));
+      // Crystal truncation rod: Lorentzian streak along Qz at Qx_sub.
+      // Real RSM data always shows this as a faint vertical tail through the substrate peak.
+      const dz_ctr = (Qz - Qz_sub) / (Qz_span * 0.12);
+      const I_ctr = subAmp * 0.04 * Math.exp(-0.5 * dx_s * dx_s) / (1 + dz_ctr * dz_ctr);
       // Film spot (broader, weaker; intensity scales with thickness)
       const dz_f = (Qz - Qz_film) / Math.max(sigma_z_film, 1e-6);
       const dx_f = (Qx - Qx_film) / Math.max(sigma_x_film, sigma_x_sub_g);
       const I_film = filmAmp * Math.exp(-0.5 * (dx_f*dx_f + dz_f*dz_f));
-      const I = I_sub + I_film;
+      const I = I_sub + I_ctr + I_film;
       Imap[j*nx + i] = I;
     }
   }
@@ -8000,20 +8019,24 @@ function renderRSM() {
       const I = Imap[Qz_j*nx + i] / maxI;
       const logI = Math.log10(Math.max(I, 1e-12));
       const norm = Math.max(0, Math.min(1, (logI - minLog) / (0 - minLog)));
-      // Heat colormap: black → blue/teal → green → yellow-green
+      // Hot colormap: black → dark red → red → orange → yellow → white
+      // Matches the most common colormap used in published HRXRD/RSM data.
       let r, g, b;
       if (norm < 0.25) {
         const t = norm / 0.25;
-        r = 0; g = Math.floor(40 * t); b = Math.floor(60 * t);
+        r = Math.floor(160 * t); g = 0; b = 0;
       } else if (norm < 0.55) {
         const t = (norm - 0.25) / 0.30;
-        r = 0; g = Math.floor(40 + 140 * t); b = Math.floor(60 - 60 * t);
-      } else if (norm < 0.85) {
-        const t = (norm - 0.55) / 0.30;
-        r = Math.floor(180 * t); g = Math.floor(180 + 60 * t); b = 0;
+        r = Math.floor(160 + 95 * t); g = 0; b = 0;
+      } else if (norm < 0.78) {
+        const t = (norm - 0.55) / 0.23;
+        r = 255; g = Math.floor(180 * t); b = 0;
+      } else if (norm < 0.93) {
+        const t = (norm - 0.78) / 0.15;
+        r = 255; g = Math.floor(180 + 75 * t); b = 0;
       } else {
-        const t = (norm - 0.85) / 0.15;
-        r = Math.floor(180 + 32 * t); g = Math.floor(240 + 15 * t); b = Math.floor(58 * t);
+        const t = (norm - 0.93) / 0.07;
+        r = 255; g = 255; b = Math.floor(255 * t);
       }
       const idx = (py * PW + px) * 4;
       img.data[idx]   = r;
