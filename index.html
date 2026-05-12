@@ -1731,14 +1731,16 @@ footer {
   header .subtitle { text-align: left; }
 
   .page-tabs {
-    overflow-x: auto;
+    overflow-x: scroll;
     -webkit-overflow-scrolling: touch;
+    /* Push content up; scrollbar sits in the padding below the tab buttons */
+    padding-bottom: 6px;
     scrollbar-width: thin;
-    scrollbar-color: var(--accent) var(--panel);
+    scrollbar-color: #e8a020 #1a1b1f;
   }
-  .page-tabs::-webkit-scrollbar { display: block; height: 3px; }
-  .page-tabs::-webkit-scrollbar-track { background: var(--panel); }
-  .page-tabs::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+  .page-tabs::-webkit-scrollbar { display: block; height: 5px; }
+  .page-tabs::-webkit-scrollbar-track { background: #1a1b1f; }
+  .page-tabs::-webkit-scrollbar-thumb { background: #e8a020; border-radius: 3px; }
   .page-tab { padding: 12px 16px; flex-shrink: 0; }
 
   /* Right-edge fade — signals more tabs are off-screen */
@@ -1761,6 +1763,13 @@ footer {
     grid-template-columns: 1fr;
     gap: 4px;
   }
+
+  /* Fix SVG text stretching: lock aspect ratio to match each viewBox */
+  #xrd-svg    { height: auto; aspect-ratio: 1100 / 420; }
+  #hrxrd-svg,
+  #xrr-svg,
+  #gi-svg,
+  #st-svg     { height: auto; aspect-ratio: 1100 / 360; }
 }
 </style>
 </head>
@@ -8018,14 +8027,12 @@ function renderRSM() {
       const dz_s = (Qz - Qz_sub) / sigma_z_sub_g;
       const dx_s = (Qx - Qx_sub) / sigma_x_sub_g;
       const I_sub = subAmp * Math.exp(-0.5 * (dx_s*dx_s + dz_s*dz_s));
-      // Crystal truncation rod: faint Lorentzian streak along Qz at Qx_sub.
-      const dz_ctr = (Qz - Qz_sub) / (Qz_span * 0.06);
-      const I_ctr = subAmp * 0.003 * Math.exp(-0.5 * dx_s * dx_s) / (1 + dz_ctr * dz_ctr);
+
       // Film spot (broader, weaker; intensity scales with thickness)
       const dz_f = (Qz - Qz_film) / Math.max(sigma_z_film, 1e-6);
       const dx_f = (Qx - Qx_film) / Math.max(sigma_x_film, sigma_x_sub_g);
       const I_film = filmAmp * Math.exp(-0.5 * (dx_f*dx_f + dz_f*dz_f));
-      const I = I_sub + I_ctr + I_film;
+      const I = I_sub + I_film;
       Imap[j*nx + i] = I;
     }
   }
